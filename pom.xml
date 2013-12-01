@@ -2,7 +2,7 @@
   <modelVersion>4.0.0</modelVersion>
   <groupId>me.ellbristow</groupId>
   <artifactId>ChestBank</artifactId>
-  <version>1.10.3</version>
+  <version>1.10.4-SNAPSHOT</version>
   <name>ChestBank</name>
   <description>ChestBank Minecraft Bukkit plugin</description>
   <properties>
