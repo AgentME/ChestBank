@@ -1,6 +1,6 @@
 name: ChestBank
 main: me.ellbristow.ChestBank.ChestBank
-version: 1.10.1
+version: "${project.version}"
 author: ellbristow
 dev-url: http://dev.bukkit.org/server-mods/chestbank
 softdepend: [Vault,My Worlds,Multiverse,WhooshingWell]
