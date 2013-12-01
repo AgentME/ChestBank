@@ -13,6 +13,10 @@ import org.bukkit.configuration.ConfigurationSection;
 import org.bukkit.configuration.file.FileConfiguration;
 
 class FlatSaver extends Saver {
+    // This is probably going to look crazy. Seems like Bukkit sometimes unloads
+    // static classes before finishing disabling a plugin. Workaround: hold a reference.
+    private ItemSerialization itemSerHandle = new ItemSerialization();
+
     private boolean allBanksDirty = false;
     private Set<Bank> dirtyBanks = new HashSet<Bank>();
     private Set<String> dirtyAccounts = new HashSet<String>();
