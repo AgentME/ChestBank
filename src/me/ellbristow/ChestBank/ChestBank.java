@@ -4,8 +4,14 @@ import java.io.File;
 import java.io.IOException;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.List;
+import java.util.ArrayList;
 import java.util.Set;
+import java.util.Queue;
+import java.util.concurrent.ConcurrentLinkedQueue;
+import java.util.concurrent.atomic.AtomicBoolean;
 import org.bukkit.*;
+import org.bukkit.scheduler.BukkitScheduler;
 import org.bukkit.block.Block;
 import org.bukkit.command.Command;
 import org.bukkit.command.CommandSender;
@@ -28,7 +34,7 @@ import org.bukkit.plugin.java.JavaPlugin;
 
 public class ChestBank extends JavaPlugin {
 
-    protected static ChestBank plugin;
+    protected ChestBank plugin;
     protected FileConfiguration banksConfig;
     protected FileConfiguration config;
     private File bankFile = null;
@@ -48,12 +54,22 @@ public class ChestBank extends JavaPlugin {
     protected double useFee;
     protected boolean useEnderChests;
 
+    protected Queue<SaveTask> saveQueue = new ConcurrentLinkedQueue<SaveTask>();
+    protected AtomicBoolean isSaving = new AtomicBoolean(false);
+
     @Override
     public void onDisable() {
+        while(isSaving.get()) {
+            getLogger().severe("Waiting to finish saving chest banks...");
+            try {
+                Thread.sleep(1000);
+            } catch(Exception e) {}
+        }
     }
 
     @Override
     public void onEnable() {
+        plugin = this;
         PluginManager pm = getServer().getPluginManager();
         config = getConfig();
         int thisLimit;
@@ -135,6 +151,8 @@ public class ChestBank extends JavaPlugin {
         if (useNetworkPerms) {
             registerNetworkPerms();
         }
+        
+        startSaver();
         
         try {
             Metrics metrics = new Metrics(this);
@@ -862,14 +880,66 @@ public class ChestBank extends JavaPlugin {
     }
 
     public void saveChestBanks() {
+        saveChestBanks(null);
+    }
+
+    public void saveChestBanks(String playername) {
         if (banksConfig == null || bankFile == null) {
             return;
         }
-        try {
-            banksConfig.save(bankFile);
-        } catch (IOException ex) {
-            getLogger().severe("Could not save " + bankFile);
-            ex.printStackTrace();
+        saveQueue.add(new SaveTask(banksConfig.saveToString(), playername));
+    }
+
+    private void startSaver() {
+        final BukkitScheduler sched = plugin.getServer().getScheduler();
+        sched.runTaskTimerAsynchronously(plugin, new Runnable() {
+            SaveTask task;
+            String saveString = null;
+            List<String> players = new ArrayList<String>();
+            
+            @Override
+            public void run() {
+                if (!isSaving.compareAndSet(false, true)) return;
+                
+                saveString = null;
+                players.clear();
+                while ((task = saveQueue.poll()) != null) {
+                    saveString = task.getSaveString();
+                    if (task.getPlayerName() != null)
+                        players.add(task.getPlayerName());
+                }
+                if (saveString != null) {
+                    boolean success = false;
+                    try {
+                        Writer writer = new FileWriter(bankFile);
+                        writer.write(saveString);
+                        writer.close();
+                        success = true;
+                    } catch (IOException e) {
+                        e.printStackTrace();
+                    }
+                    
+                    if (players.size() > 0) {
+                        final boolean successCopy = success;
+                        final List<String> playersCopy = new ArrayList<String>(players);
+                        sched.scheduleSyncDelayedTask(plugin, new Runnable() {
+                            @Override
+                            public void run() {
+                                alertUsersOfSave(playersCopy, successCopy);
+                            }
+                        });
+                    }
+                }
+                isSaving.set(false);
+            }
+        }, 20L, 20L);
+    }
+
+    protected void alertUsersOfSave(List<String> players, boolean success) {
+        for (String playername : players) {
+            Player p = plugin.getServer().getPlayerExact(playername);
+            if (p != null)
+                p.sendMessage(success ? (ChatColor.GRAY + "ChestBank Inventory Saved!") : (ChatColor.RED + "ChestBank saved failed! Contact an admin!"));
         }
     }
 }

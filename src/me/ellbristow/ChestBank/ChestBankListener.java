@@ -116,12 +116,9 @@ public class ChestBankListener implements Listener {
                 } else {
                     plugin.chestAccounts.put(network + ">>" + player.getName(), inv);
                 }
-                plugin.setAccounts(plugin.chestAccounts);
-            } else {
-                plugin.setAccounts(plugin.chestAccounts);
             }
-            plugin.saveChestBanks();
-            player.sendMessage(ChatColor.GRAY + "ChestBank Inventory Saved!");
+            plugin.setAccounts(plugin.chestAccounts);
+            plugin.saveChestBanks(player.getName());
             if (plugin.gotVault && plugin.gotEconomy && plugin.useFee != 0) {
                 if ((network.equals("") && !player.hasPermission("chestbank.free.use")) || (!network.equals("") && !player.hasPermission("chestbank.free.use.networks"))) {
                     plugin.vault.economy.withdrawPlayer(player.getName(), plugin.useFee);
