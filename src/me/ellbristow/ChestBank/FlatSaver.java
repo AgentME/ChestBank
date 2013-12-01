@@ -1,5 +1,7 @@
 package me.ellbristow.ChestBank;
 
+import java.util.Set;
+import java.util.HashSet;
 import java.io.File;
 import java.io.IOException;
 
@@ -11,7 +13,9 @@ import org.bukkit.configuration.ConfigurationSection;
 import org.bukkit.configuration.file.FileConfiguration;
 
 class FlatSaver extends Saver {
-    private boolean dirty = false;
+    private boolean allBanksDirty = false;
+    private Set<Bank> dirtyBanks = new HashSet<Bank>();
+    private Set<String> dirtyAccounts = new HashSet<String>();
 
     final private ChestBank plugin;
     final private BukkitScheduler sched;
@@ -53,64 +57,83 @@ class FlatSaver extends Saver {
         }
 
         public void run() {
-            if (!dirty)
+            if (!allBanksDirty && dirtyBanks.size() == 0 && dirtyAccounts.size() == 0)
                 return;
             
-            dirty = false;
-
             banksConfig.set("version", plugin.getDescription().getVersion());
             
-            ConfigurationSection accounts = banksConfig.createSection("accounts");
-            for (String key : plugin.chestAccounts.keySet()) {
+            ConfigurationSection accounts = banksConfig.getConfigurationSection("accounts");
+            for (String key : dirtyAccounts) {
                 Inventory chest = plugin.chestAccounts.get(key);
                 ConfigurationSection section = accounts.createSection(key);
                 ItemSerialization.saveInventory(chest, section);
             }
+            dirtyAccounts.clear();
             
-            banksConfig.set("banks", makeLocationsString(new Bank(null)));
+            Set<Bank> banksToDo = dirtyBanks;
+            if (allBanksDirty)
+                banksToDo = plugin.banks.getAllBanks();
             
-            ConfigurationSection networks = banksConfig.createSection("networks");
-            for (Bank bank : plugin.banks.getAllBanks()) {
+            Bank mainnet = new Bank(null);
+            if (banksToDo.contains(mainnet))
+                banksConfig.set("banks", makeLocationsString(new Bank(null)));
+            
+            ConfigurationSection networks;
+            if (allBanksDirty)
+                networks = banksConfig.createSection("networks");
+            else
+                networks = banksConfig.getConfigurationSection("networks");
+            
+            for (Bank bank : banksToDo) {
                 String networkName = bank.getNetwork();
                 if (networkName == null)
                     continue;
-
+                
                 ConfigurationSection network = networks.createSection(networkName);
                 network.set("locations", makeLocationsString(bank));
             }
+            allBanksDirty = false;
+            dirtyBanks.clear();
             
             if (asyncStep)
-                sched.runTaskAsynchronously(plugin, new SaverAsyncTask());
+                sched.runTaskAsynchronously(plugin, new Step2());
             else
-                (new SaverAsyncTask()).run();
+                (new Step2()).run();
         }
-    }
-
-    private class SaverAsyncTask implements Runnable {
-        public void run() {
-            try {
-                banksConfig.save(bankFile);
-            } catch (IOException e) {
-                e.printStackTrace();
+        
+        private class Step2 implements Runnable {
+            public void run() {
+                try {
+                    banksConfig.save(bankFile);
+                } catch (IOException e) {
+                    e.printStackTrace();
+                }
             }
         }
     }
-    
+
     public void close() {
         (new SaverSyncTask(false)).run();
     }
 
     public void add(Location loc, Bank bank) {
-        dirty = true;
+        dirtyBanks.add(bank);
     }
 
     public void removeLocation(Location loc) {
-        dirty = true;
+        allBanksDirty = true;
     }
 
     public void updateAccount(String player, String network) {
-        // if ("".equals(network))
-        //     network = null;
-        dirty = true;
+        if ("".equals(network))
+            network = null;
+        
+        String account;
+        if (network == null)
+            account = player;
+        else
+            account = network + ">>" + player;
+        
+        dirtyAccounts.add(account);
     }
 }
