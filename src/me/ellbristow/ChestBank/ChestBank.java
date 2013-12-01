@@ -299,7 +299,7 @@ public class ChestBank extends JavaPlugin {
                 }
                 Block doubleChest = getDoubleChest(block);
                 if (useEnderChests && doubleChest != null) {
-                    player.sendMessage(ChatColor.RED + "You cannot turn a double chest into and Ender ChestBank!");
+                    player.sendMessage(ChatColor.RED + "You cannot turn a double chest into an Ender ChestBank!");
                     return true;
                 }
                 if (gotVault && gotEconomy && createFee != 0) {
