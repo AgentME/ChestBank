@@ -77,7 +77,9 @@ class Banks {
     public void loadNetworks(ConfigurationSection config) {
         setSave(false);
         Bank bank = new Bank(null);
-        loadLocationsString(bank, config.getString("banks"));
+        String banksString = config.getString("banks");
+        if (banksString != null)
+            loadLocationsString(bank, banksString);
         
         ConfigurationSection networks = config.getConfigurationSection("networks");
         if (networks != null) {

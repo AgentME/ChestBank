@@ -63,6 +63,9 @@ class FlatSaver extends Saver {
             banksConfig.set("version", plugin.getDescription().getVersion());
             
             ConfigurationSection accounts = banksConfig.getConfigurationSection("accounts");
+            if (accounts == null)
+                accounts = banksConfig.createSection("accounts");
+            
             for (String key : dirtyAccounts) {
                 Inventory chest = plugin.chestAccounts.get(key);
                 ConfigurationSection section = accounts.createSection(key);
@@ -78,11 +81,9 @@ class FlatSaver extends Saver {
             if (banksToDo.contains(mainnet))
                 banksConfig.set("banks", makeLocationsString(new Bank(null)));
             
-            ConfigurationSection networks;
-            if (allBanksDirty)
+            ConfigurationSection networks = banksConfig.getConfigurationSection("networks");
+            if (allBanksDirty || networks == null)
                 networks = banksConfig.createSection("networks");
-            else
-                networks = banksConfig.getConfigurationSection("networks");
             
             for (Bank bank : banksToDo) {
                 String networkName = bank.getNetwork();
